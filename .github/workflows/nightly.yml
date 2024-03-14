@@ -1,0 +1,29 @@
+name: Build and upload nightly ipa
+
+on: [ push, workflow_dispatch ]
+
+jobs:
+  build:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 'latest'
+      - name: Get commit SHA
+        id: commitinfo
+        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+      - name: Build
+        run: xcodebuild -scheme "Caret (iOS)" -configuration Release archive -archivePath build/Caret.xcarchive CODE_SIGN_IDENTITY= CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+      - name: Package ipa
+        run: |
+          mkdir Payload
+          cp -r build/Caret.xcarchive/Products/Applications/Caret.app Payload
+          zip -r Caret-iOS_nightly-${{ steps.commitinfo.outputs.sha_short }}.ipa Payload
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: Caret-iOS_nightly-${{ steps.commitinfo.outputs.sha_short }}.ipa
+          path: Caret-iOS_nightly-${{ steps.commitinfo.outputs.sha_short }}.ipa
+          if-no-files-found: error
